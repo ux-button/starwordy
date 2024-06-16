@@ -1,11 +1,9 @@
-#import os
-
-import sqlite3
 from flask import Flask, redirect, render_template, request, session
 from flask_session import Session
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from flipcard import Flipcard, Group, User
+from sqlreader import SQLreader
 
 from functools import wraps
 
@@ -15,8 +13,7 @@ app.config['SESSION_PERMANENT'] = False
 app.config['SESSION_TYPE'] = 'filesystem'
 Session(app)
 
-connection = sqlite3.connect("./starword.db")
-cursor = connection.cursor()
+db = SQLreader('starword.db')
 
 correct = 0
 
@@ -69,16 +66,18 @@ def login():
         # Check password
         if not request.form.get('password'):
             return render_template('error.html', error_type='Empty password', error_message='Empty password')
+        
+        user_db = request.form.get('username').lower()
 
         # Find user data
-        rows = cursor.execute('SELECT * FROM users WHERE user_id = ?', (request.form.get('username').lower())).fetchall()
+        rows = db.get('SELECT * FROM users WHERE user_id = ?', (user_db,))
 
         # Check user and password correctness
-        if len(rows) != 1 or check_password_hash(rows[0]['password'], request.form.get('password')):
+        if not rows or check_password_hash(rows[1], request.form.get('password')):
             return render_template('error.html', error_type='Log in failed', error_message='Wrong username or password')
 
         # Create session
-        session['user_id'] = rows[0]['id']
+        session['user_id'] = rows[0]
 
         return redirect('/')
 
@@ -99,15 +98,17 @@ def register():
         # Check password
         if not request.form.get('password'):
             return render_template('error.html', error_type='Empty password', error_message='Empty password')
+        
+        usr = request.form.get('username').lower()
 
         # Check unique user
-        rows = cursor.execute('SELECT id FROM users WHERE user_id = ?', (request.form.get('username').lower())).fetchall()
-        if len(rows) != 0:
+        rows = db.get('SELECT id FROM users WHERE user_id = ?', (usr,))
+        if rows:
             return render_template('error.html', error_type='User exists', error_message='User already exists')
 
         # Save user in database
-        hashed_password = generate_password_hash(request.form.get('password'))
-        cursor.execute('INSERT INTO users (user_id, password) VALUES (?, ?)', (request.form.get('username').lower(), hashed_password))
+        hashed_password = generate_password_hash(request.form.get('password'), method='pbkdf2')
+        db.set('INSERT INTO users (user_id, password) VALUES (?, ?)', (usr, hashed_password,))
 
         return redirect('/')
 

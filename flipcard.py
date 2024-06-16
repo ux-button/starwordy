@@ -1,8 +1,7 @@
-import sqlite3
 import random
+from sqlreader import SQLreader
 
-connection = sqlite3.connect("starword.db")
-cursor = connection.cursor()
+db = SQLreader('starword.db')
 
 class Group:
     def __init__(self, id, name):
@@ -13,36 +12,36 @@ class Group:
     @classmethod
     def new(cls, name, user):
         name = name.strip().lower().capitalize()
-        cursor.execute('INSERT INTO groups (user_id, group_name) VALUES (?, ?)', (user, name))
-        rows = cursor.execute('SELECT id FROM groups WHERE user_id = ?', (user)).fetchall()
-        return cls(rows[0]['id'], name)
+        db.set('INSERT INTO groups (user_id, group_name) VALUES (?, ?)', (user, name,))
+        rows = db.get('SELECT id FROM groups WHERE user_id = ?', (user,))
+        return cls(rows[0], name)
 
 
     @classmethod
     def load(cls, user_id):
-        rows = cursor.execute('SELECT id, group_name FROM groups WHERE user_id = ?', (user_id)).fetchall()
+        rows = db.getall('SELECT id, group_name FROM groups WHERE user_id = ?', (user_id,))
         groups = list()
         for row in rows:
-            group = cls(row['id'], row['group_name'])
+            group = cls(row[0], row[1])
             groups.append(group)
         return groups
 
 
     @classmethod
     def load_group(cls, name, user):
-        rows = cursor.execute('SELECT id FROM groups WHERE user_id = ? AND group_name = ?', (user, name)).fetchall()
+        rows = db.get('SELECT id FROM groups WHERE user_id = ? AND group_name = ?', (user, name,))
         if len(rows) == 0:
             return None
-        return cls(rows[0]['id'], name)
+        return cls(rows[0], name)
 
 
     @classmethod
     def delete(cls, group_id):
         # Delete all words related to group
-        cursor.execute('DELETE FROM words WHERE group_id = ?', (group_id))
+        db.set('DELETE FROM words WHERE group_id = ?', (group_id,))
 
         # Delete group
-        cursor.execute('DELETE FROM groups WHERE id = ?', (group_id))
+        db.set('DELETE FROM groups WHERE id = ?', (group_id,))
 
 
 class Flipcard:
@@ -56,20 +55,20 @@ class Flipcard:
 
     @classmethod
     def new(cls, group_id, word, definition):
-        cursor.execute('INSERT INTO words (group_id, word, definition, curve) VALUES (?, ?, ?, 0)',
-                   (group_id, word, definition))
-        rows = cursor.execute('SELECT * FROM words WHERE group_id = ? AND word = ? AND definition = ?',
-                          (group_id, word, definition)).fetchall()
-        return cls(rows[0]['id'], rows[0]['group_id'], rows[0]['word'], rows[0]['definition'], rows[0]['curve'])
+        db.set('INSERT INTO words (group_id, word, definition, curve) VALUES (?, ?, ?, 0)',
+                   (group_id, word, definition,))
+        rows = db.get('SELECT * FROM words WHERE group_id = ? AND word = ? AND definition = ?',
+                          (group_id, word, definition,))
+        return cls(rows[0], rows[1], rows[2], rows[3], rows[4])
 
 
     # Load all flipcard of the group
     @classmethod
     def load(cls, group_id):
-        rows = cursor.execute('SELECT * FROM words WHERE group_id = ?', (group_id)).fetchall()
+        rows = db.getall('SELECT * FROM words WHERE group_id = ?', (group_id,))
         flipcards = list()
         for row in rows:
-            flipcard = cls(row['id'], group_id, row['word'], row['definition'], row['curve'])
+            flipcard = cls(row[0], group_id, row[2], row[3], row[4])
             flipcards.append(flipcard)
         return flipcards
 
@@ -77,10 +76,10 @@ class Flipcard:
     # Load n random cards from group
     @classmethod
     def load_random(cls, group_id, quantity):
-        rows = cursor.execute('SELECT * FROM words WHERE group_id = ?', (group_id)).fetchall()
+        rows = db.getall('SELECT * FROM words WHERE group_id = ?', (group_id,))
         flipcards = list()
         for row in rows:
-            flipcard = cls(row['id'], group_id, row['word'], row['definition'], row['curve'])
+            flipcard = cls(row[0], group_id, row[2], row[3], row[4])
             flipcards.append(flipcard)
         random.shuffle(flipcards)
         return flipcards[:quantity]
@@ -88,7 +87,7 @@ class Flipcard:
 
     @classmethod
     def delete(cls, id):
-        cursor.execute('DELETE FROM words WHERE id = ?', (id))
+        db.set('DELETE FROM words WHERE id = ?', (id,))
 
 
     def increase(self):
@@ -120,8 +119,8 @@ class User:
                 all_flipcards.append(flipcard)
 
         # Load username
-        username = cursor.execute('SELECT user_id FROM users WHERE id = ?', (id)).fetchall()
-        username = str(username[0]['user_id']).capitalize()
+        username = db.get('SELECT user_id FROM users WHERE id = ?', (id,))
+        username = str(username[0]).capitalize()
 
         # Return user object
         return cls(id, username, all_groups, all_flipcards)
