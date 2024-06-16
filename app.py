@@ -1,4 +1,4 @@
-import os
+#import os
 
 import sqlite3
 from flask import Flask, redirect, render_template, request, session
@@ -15,7 +15,7 @@ app.config['SESSION_PERMANENT'] = False
 app.config['SESSION_TYPE'] = 'filesystem'
 Session(app)
 
-connection = sqlite3.connect("starword.db")
+connection = sqlite3.connect("./starword.db")
 cursor = connection.cursor()
 
 correct = 0
