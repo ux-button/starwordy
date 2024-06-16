@@ -1,6 +1,6 @@
 import os
 
-from cs50 import SQL
+import sqlite3
 from flask import Flask, redirect, render_template, request, session
 from flask_session import Session
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -15,7 +15,8 @@ app.config['SESSION_PERMANENT'] = False
 app.config['SESSION_TYPE'] = 'filesystem'
 Session(app)
 
-db = SQL("sqlite:///starword.db")
+connection = sqlite3.connect("starword.db")
+cursor = connection.cursor()
 
 correct = 0
 
@@ -70,7 +71,7 @@ def login():
             return render_template('error.html', error_type='Empty password', error_message='Empty password')
 
         # Find user data
-        rows = db.execute('SELECT * FROM users WHERE user_id = ?', request.form.get('username').lower())
+        rows = cursor.execute('SELECT * FROM users WHERE user_id = ?', (request.form.get('username').lower())).fetchall()
 
         # Check user and password correctness
         if len(rows) != 1 or check_password_hash(rows[0]['password'], request.form.get('password')):
@@ -100,13 +101,13 @@ def register():
             return render_template('error.html', error_type='Empty password', error_message='Empty password')
 
         # Check unique user
-        rows = db.execute('SELECT id FROM users WHERE user_id = ?', request.form.get('username').lower())
+        rows = cursor.execute('SELECT id FROM users WHERE user_id = ?', (request.form.get('username').lower())).fetchall()
         if len(rows) != 0:
             return render_template('error.html', error_type='User exists', error_message='User already exists')
 
         # Save user in database
         hashed_password = generate_password_hash(request.form.get('password'))
-        db.execute('INSERT INTO users (user_id, password) VALUES (?, ?)', request.form.get('username').lower(), hashed_password)
+        cursor.execute('INSERT INTO users (user_id, password) VALUES (?, ?)', (request.form.get('username').lower(), hashed_password))
 
         return redirect('/')
 
